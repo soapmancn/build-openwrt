@@ -30,3 +30,33 @@ sed -i 's/192.168.1.1/192.168.5.1/g' package/base-files/files/bin/config_generat
 #
 # ------------------------------- Other ends -------------------------------
 
+# 设置2.4G和5G WiFi名称、密码、信道和带宽
+cat > package/base-files/files/etc/uci-defaults/99-wifi-ssid-pass <<'EOF'
+for dev in $(uci show wireless | grep "=wifi-device" | cut -d. -f2 | cut -d= -f1); do
+    band=$(uci get wireless.$dev.band 2>/dev/null)
+    if [ "$band" = "2g" ]; then
+        # 查找对应iface
+        iface=$(uci show wireless | grep "=wifi-iface" | cut -d. -f2 | cut -d= -f1 | while read i; do
+            [ "$(uci get wireless.$i.device 2>/dev/null)" = "$dev" ] && echo $i && break
+        done)
+        uci set wireless.$iface.ssid='FREEWIFI'
+        uci set wireless.$iface.encryption='psk2'
+        uci set wireless.$iface.key='666666'
+        uci set wireless.$dev.channel='13'
+        uci set wireless.$dev.htmode='HT20'
+        uci set wireless.$iface.disassoc_low_ack='0'
+    elif [ "$band" = "5g" ]; then
+        iface=$(uci show wireless | grep "=wifi-iface" | cut -d. -f2 | cut -d= -f1 | while read i; do
+            [ "$(uci get wireless.$i.device 2>/dev/null)" = "$dev" ] && echo $i && break
+        done)
+        uci set wireless.$iface.ssid='FREEWIFI5G'
+        uci set wireless.$iface.encryption='psk2'
+        uci set wireless.$iface.key='666666'
+        uci set wireless.$dev.channel='64'
+        uci set wireless.$dev.htmode='VHT160'
+        uci set wireless.$iface.disassoc_low_ack='0'
+    fi
+done
+uci commit wireless
+EOF
+chmod +x package/base-files/files/etc/uci-defaults/99-wifi-ssid-pass
